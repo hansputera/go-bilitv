@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"golang.org/x/exp/maps"
 )
@@ -18,11 +19,10 @@ type BiliHttp struct {
 
 func (h *BiliHttp) CombineHeaders(headers map[string]string) *http.Header {
 	maps.Copy(headers, h.DefaultHeaders)
-
 	headers_net := http.Header{}
 
-	for _, head := range headers {
-		headers_net.Add(head, headers[head])
+	for head, headValue := range headers {
+		headers_net.Add(head, headValue)
 	}
 
 	return &headers_net
@@ -30,7 +30,7 @@ func (h *BiliHttp) CombineHeaders(headers map[string]string) *http.Header {
 
 func (h *BiliHttp) Request(method string, path string, queries *url.Values, postform *url.Values, body *io.ReadCloser, additional_headers *map[string]string) *http.Request {
 	tmpUrl := *h.Base
-	tmpUrl.Path = url.PathEscape(path)
+	tmpUrl.Path = path
 	if queries != nil {
 		tmpUrl.RawQuery = queries.Encode()
 	}
@@ -60,11 +60,12 @@ func (h *BiliHttp) Request(method string, path string, queries *url.Values, post
 func (h *BiliHttp) Send(request *http.Request) *http.Response {
 	res, err := h.httpClient.Do(request)
 	if err != nil {
+		res = &http.Response{}
 		res.Status = err.Error()
 		res.StatusCode = 505
+	} else {
+		defer res.Body.Close()
 	}
-
-	defer res.Body.Close()
 
 	return res
 }
@@ -110,7 +111,7 @@ func GetBiliHttp(httpType int, webConfig *config.WebConfig) *BiliHttp {
 				"Referer": "https://www.bilibili.tv/",
 			},
 			httpClient: &http.Client{
-				Timeout: 5000,
+				Timeout: 5 * time.Second,
 			},
 		}
 	case 1:
@@ -126,7 +127,7 @@ func GetBiliHttp(httpType int, webConfig *config.WebConfig) *BiliHttp {
 				"Referer": "https://www.bilibili.tv/",
 			},
 			httpClient: &http.Client{
-				Timeout: 15000,
+				Timeout: 15 * time.Second,
 			},
 		}
 	}
